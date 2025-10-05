@@ -1,0 +1,20 @@
+# Ignore common build artifacts
+/build/
+/dist/
+
+# Ignore log files
+*.log
+logs/
+
+# Ignore dependency directories
+node_modules/
+vendor/
+
+# Ignore OS and IDE specific files
+.DS_Store
+.vscode/
+.idea/
+
+# Ignore sensitive or local configuration files
+.env
+config.local.js
