@@ -17,7 +17,7 @@ export const signup = async (req, res) => {
                 message: "user found with this username/email",
             });
         }
-        
+
         const hashedPassword = await bcrypt.hash(password, 12);
 
         const user = await User.create({
@@ -143,3 +143,102 @@ export const signout = async (req, res) => {
         })
     }
 }
+
+export const sendVerifyEmailOTP = async (req, res) => {
+    const { userId } = req.body;
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "no user found with this id",
+            });
+        }
+        if (user.isVerified) {
+            return res.status(400).json({
+                success: false,
+                message: "user is already verified",
+            });
+        }
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        user.verifyOTP = otp;
+        user.verifyOTPExpiresAt = otpExpiresAt;
+        await user.save();
+
+        const mailOptions = {
+            from: process.env.SMTP_USER,
+            to: user.email,
+            subject: 'Account Verification OTP',
+            text: `Your otp for account verification is ${otp}. It is valid for 10 minutes.`
+        }
+        const transporter = getTransporter;
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({
+            success: true,
+            message: "verification otp sent to email",
+        });
+    } catch (error) {
+        console.log("error in sending verify email otp", error);
+        return res.status(500).json({
+            success: false,
+            message: "error occured in sending verify email otp"
+        })
+    }
+};
+
+
+export const verifyEmail = async (req, res) => {
+    const { userId, otp } = req.body;
+
+    if (!otp || otp.length !== 6) {
+        return res.status(400).json({
+            success: false,
+            message: "invalid otp",
+        });
+    }
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "no user found with this id",
+            });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({
+                success: false,
+                message: "user is already verified",
+            });
+        }
+        if (user.verifyOTP !== otp) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid otp",
+            });
+        }
+        if (user.verifyOTPExpiresAt < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: "otp expired",
+            });
+        }
+        user.isVerified = true;
+        user.verifyOTP = '';
+        user.verifyOTPExpiresAt = undefined;
+        await user.save();
+        return res.status(200).json({
+            success: true,
+            message: "email verified successfully",
+        });
+    } catch (error) {
+        console.log("error in verifying email", error);
+        return res.status(500).json({
+            success: false,
+            message: "error occured in verifying email"
+        })
+    }
+};
