@@ -2,6 +2,7 @@ import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getTransporter from "../config/nodeMailer.js";
+import { verifyEmailOTP, welcomeEmail } from "../utils/emailTemplates.js";
 
 export const signup = async (req, res) => {
     const { username, email, password } = req.body;
@@ -37,11 +38,13 @@ export const signup = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
+        const html = welcomeEmail(user.username);
+
         const mailOptions = {
             from: process.env.SMTP_USER,
             to: user.email,
             subject: 'welcome to Nothing',
-            text: `Hi ${user.username},\n\nWelcome to Nothing! your account has been created with email: ${user.email}\n\nBest regards,\nThe Nothing Team`
+            html
         }
 
         const transporter = getTransporter;
@@ -166,11 +169,12 @@ export const sendVerifyEmailOTP = async (req, res) => {
         user.verifyOTPExpiresAt = otpExpiresAt;
         await user.save();
 
+        const html = verifyEmailOTP(user.username, otp);
         const mailOptions = {
             from: process.env.SMTP_USER,
             to: user.email,
             subject: 'Account Verification OTP',
-            text: `Your otp for account verification is ${otp}. It is valid for 10 minutes.`
+            html
         }
         const transporter = getTransporter;
         await transporter.sendMail(mailOptions);
